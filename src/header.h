@@ -1,3 +1,6 @@
+#ifndef HEADER_H
+#define HEADER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +37,15 @@ void loginMenu(char a[50], char pass[50]);
 void registerMenu(char a[50], char pass[50]);
 const char *getPassword(struct User u);
 
-// system function
+// system functions
 void createNewAcc(struct User u);
 void mainMenu(struct User u);
 void checkAllAccounts(struct User u);
+
+// new functions
+void updateAccountInfo(struct User u);
+void makeTransaction(struct User u);
+void removeExistingAccount(struct User u);
+void transferOwnership(struct User u);
+
+#endif

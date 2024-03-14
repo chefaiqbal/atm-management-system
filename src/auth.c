@@ -34,6 +34,15 @@ void loginMenu(char a[50], char pass[50])
     }
 };
 
+void registerMenu(char a[50], char pass[50])
+{
+    system("clear");
+    printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Registration:");
+    scanf("%s", a);
+
+    printf("\n\n\n\n\n\t\t\t\tEnter the password for registration:");
+    scanf("%s", pass);
+}
 const char *getPassword(struct User u)
 {
     FILE *fp;

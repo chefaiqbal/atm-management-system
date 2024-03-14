@@ -16,107 +16,37 @@ void mainMenu(struct User u)
     printf("\n\t\t[8]- Exit\n");
     scanf("%d", &option);
 
-    switch (option)
-    {
-    case 1:
-        createNewAcc(u);
-        break;
-    case 2:
-        // student TODO : add your **Update account information** function
-        // here
-        break;
-    case 3:
-        // student TODO : add your **Check the details of existing accounts** function
-        // here
-        break;
-    case 4:
-        checkAllAccounts(u);
-        break;
-    case 5:
-        // student TODO : add your **Make transaction** function
-        // here
-        break;
-    case 6:
-        // student TODO : add your **Remove existing account** function
-        // here
-        break;
-    case 7:
-        // student TODO : add your **Transfer owner** function
-        // here
-        break;
-    case 8:
-        exit(1);
-        break;
-    default:
-        printf("Invalid operation!\n");
-    }
-};
-/*void transferOwnership(struct User u) {
-    FILE *recordsFile = fopen(recordsFile, "r");
-    FILE *tempFile = fopen("./data/temp_records.txt", "w");
-
-    int accountNbr, targetUserId;
-    struct Record record;
-
-    // Get account number to transfer
-    printf("Enter the account number to transfer: ");
-    scanf("%d", &accountNbr);
-
-    int found = 0;
-
-    // Iterate through records to find the specified account
-    while (fscanf(recordsFile, "%d %d %s %d %d/%d/%d %s %d %lf %s",
-                  &record.id,
-                  &record.userId,
-                  record.name,
-                  &record.accountNbr,
-                  &record.deposit.month,
-                  &record.deposit.day,
-                  &record.deposit.year,
-                  record.country,
-                  &record.phone,
-                  &record.amount,
-                  record.accountType) != EOF) {
-        if (record.accountNbr == accountNbr && strcmp(record.name, u.name) == 0) {
-            found = 1;
-
-            // Get target user ID
-            printf("Enter the ID of the user to transfer ownership to: ");
-            scanf("%d", &targetUserId);
-
-            // Update the user ID in the record
-            record.userId = targetUserId;
-
-            printf("Transfer ownership successful!\n");
-        }
-
-        // Write the record to the temporary file
-        fprintf(tempFile, "%d %d %s %d %d/%d/%d %s %d %.2lf %s\n",
-                record.id,
-                record.userId,
-                record.name,
-                record.accountNbr,
-                record.deposit.month,
-                record.deposit.day,
-                record.deposit.year,
-                record.country,
-                record.phone,
-                record.amount,
-                record.accountType);
-    }
-
-    fclose(recordsFile);
-    fclose(tempFile);
-
-    // Replace the original records file with the temporary file
-    remove(recordsFile);
-    rename("./data/temp_records.txt", recordsFile);
-
-    if (!found) {
-        printf("Account not found or you don't have permission to transfer ownership.\n");
-    }
+   switch (option)
+{
+case 1:
+    createNewAcc(u);
+    break;
+case 2:
+    updateAccountInfo(u);
+    break;
+case 3:
+    checkAllAccounts(u);  // Updated to use checkAllAccounts
+    break;
+case 4:
+    checkAllAccounts(u);  // Updated to use checkAllAccounts
+    break;
+case 5:
+    makeTransaction(u);
+    break;
+case 6:
+    removeExistingAccount(u);
+    break;
+case 7:
+    transferOwnership(u);
+    break;
+case 8:
+    exit(1);
+    break;
+default:
+    printf("Invalid operation!\n");
 }
-*/
+};
+
 void initMenu(struct User *u)
 {
     int r = 0;

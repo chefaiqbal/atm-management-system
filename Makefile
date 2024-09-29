@@ -1,24 +1,11 @@
-# Define source files and objects
-SRC_DIR = src
-OBJ_DIR = obj
-EXECUTABLE = atm
-SOURCES = $(wildcard $(SRC_DIR)/*.c)
-OBJECTS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SOURCES))
+objects = src/main.o src/system.o src/auth.o
 
-# Compiler and flags
-CC = cc
-CFLAGS = -Wall -Wextra
+atm : $(objects)
+	cc -o atm $(objects)
 
-# Targets
-all: $(EXECUTABLE)
+src/main.o : src/header.h
+src/system.o : src/header.h
+src/auth.o : src/header.h
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^
-
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-# Phony target for cleaning up
-.PHONY: clean
-clean:
-	rm -f $(OBJECTS) $(EXECUTABLE)
+clean :
+	rm -f $(objects) atm

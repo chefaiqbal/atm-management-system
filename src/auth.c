@@ -1,37 +1,82 @@
 #include <termios.h>
 #include "header.h"
+#include <unistd.h>
 
 char *USERS = "./data/users.txt";
 
 void loginMenu(char a[50], char pass[50])
 {
     struct termios oflags, nflags;
+    struct User userChecker;
+    FILE *fp;
+    int authenticated = 0;
+    int failedAttempts = 0;
 
-    system("clear");
-    printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Login:");
-    scanf("%s", a);
-
-    // disabling echo
-    tcgetattr(fileno(stdin), &oflags);
-    nflags = oflags;
-    nflags.c_lflag &= ~ECHO;
-    nflags.c_lflag |= ECHONL;
-
-    if (tcsetattr(fileno(stdin), TCSANOW, &nflags) != 0)
+    while (failedAttempts < 3)
     {
-        perror("tcsetattr");
-        return exit(1);
-    }
-    printf("\n\n\n\n\n\t\t\t\tEnter the password to login:");
-    scanf("%s", pass);
+        system("clear");
+        printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Login:");
+        printf("\n\n\n\t\t\t\tEnter your username: ");
+        scanf("%s", a);
 
-    // restore terminal
-    if (tcsetattr(fileno(stdin), TCSANOW, &oflags) != 0)
-    {
-        perror("tcsetattr");
-        return exit(1);
+        // disabling echo
+        tcgetattr(fileno(stdin), &oflags);
+        nflags = oflags;
+        nflags.c_lflag &= ~ECHO;
+        nflags.c_lflag |= ECHONL;
+
+        if (tcsetattr(fileno(stdin), TCSANOW, &nflags) != 0)
+        {
+            perror("tcsetattr");
+            exit(1);
+        }
+        printf("\n\n\n\n\n\t\t\t\tEnter the password to login:");
+        scanf("%s", pass);
+
+        // restore terminal
+        if (tcsetattr(fileno(stdin), TCSANOW, &oflags) != 0)
+        {
+            perror("tcsetattr");
+            exit(1);
+        }
+
+        // Open the users file to read and authenticate
+        if ((fp = fopen(USERS, "r")) == NULL)
+        {
+            printf("Error! opening file");
+            exit(1);
+        }
+
+        while (fscanf(fp, "%d %s %s", &userChecker.id, userChecker.name, userChecker.password) != EOF)
+        {
+            if (strcmp(userChecker.name, a) == 0 && strcmp(userChecker.password, pass) == 0)
+            {
+                authenticated = 1;
+                break;
+            }
+        }
+
+        fclose(fp);
+
+        if (authenticated)
+        {
+            printf("Login successful!\n");
+            getch(); // Wait for user input
+            // Proceed to main menu or other functionality
+            mainMenu(userChecker);
+            return;
+        }
+        else
+        {
+            failedAttempts++;
+            printf("Invalid username or password! Attempt %d of 3\n", failedAttempts);
+            getch(); // Wait for user input
+        }
     }
-};
+
+    printf("Too many failed login attempts. Exiting...\n");
+    exit(1);
+}
 
 // Function to handle user registration
 void registerMenu(char a[50], char pass[50])

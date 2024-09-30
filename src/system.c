@@ -1,7 +1,20 @@
 #include "header.h"
 #include <limits.h>
+#include <time.h>
+#include <termios.h>
+#include <unistd.h>
+
 
 char *RECORDS = "./data/records.txt";
+
+void getCurrentDate(struct Date *date) {
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    date->day = tm.tm_mday;
+    date->month = tm.tm_mon + 1; // tm_mon is 0-11, so add 1
+    date->year = tm.tm_year + 1900; // tm_year is years since 1900
+}
 
 void createNewAcc(struct User u) {
     struct Record r;
@@ -36,8 +49,8 @@ void createNewAcc(struct User u) {
     printf("Enter initial deposit amount: ");
     scanf("%lf", &r.amount);
 
-    printf("Enter deposit date (day month year): ");
-    scanf("%d %d %d", &r.deposit.day, &r.deposit.month, &r.deposit.year);
+    // Automatically set the current date
+    getCurrentDate(&r.deposit);
 
     pf = fopen("data/records.txt", "a");
     if (pf == NULL) {
@@ -45,7 +58,12 @@ void createNewAcc(struct User u) {
         return;
     }
 
-    saveAccountToFile(pf, u, r);
+    // Format and save the record to the file
+    fprintf(pf, "%d %d %s %s %d %.6lf %s %d/%d/%d %d/%d/%d\n",
+            r.id, r.userId, r.name, r.country, r.phone, r.amount, r.accountType,
+            r.deposit.day, r.deposit.month, r.deposit.year,
+            r.withdraw.day, r.withdraw.month, r.withdraw.year);
+
     fclose(pf);
 
     printf("\nAccount created successfully!\n");
@@ -374,5 +392,22 @@ int getAccountFromFile(FILE *pf, char *userName, struct Record *r)
 
 // Utility function to save an account to file
 void saveAccountToFile(FILE *pf, struct User u, struct Record r) {
-    fprintf(pf, "%d %d %s %s %d %lf %s %d/%d/%d %d/%d/%d\n", r.id, r.userId, r.name, r.country, r.phone, r.amount, r.accountType, r.deposit.day, r.deposit.month, r.deposit.year, r.withdraw.day, r.withdraw.month, r.withdraw.year);
+    fprintf(pf, "%d %d %s %s %d %.6lf %s %d/%d/%d %d/%d/%d\n",
+            r.id, r.userId, r.name, r.country, r.phone, r.amount, r.accountType,
+            r.deposit.day, r.deposit.month, r.deposit.year,
+            r.withdraw.day, r.withdraw.month, r.withdraw.year);
+}
+
+// Utility function to wait for a key press
+int getch()
+{
+    struct termios oldt, newt;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
 }

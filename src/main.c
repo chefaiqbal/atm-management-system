@@ -1,4 +1,7 @@
 #include "header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int get_int_input(int min_value, int max_value) {
     int input;
@@ -26,6 +29,9 @@ void initMenu(struct User *u)
 {
     int option;
     char username[50], password[50];
+    char input[10];
+    int authenticated = 0;
+
     do
     {
         system("clear");
@@ -34,27 +40,38 @@ void initMenu(struct User *u)
         printf("\n\t\t\t\t2. Register");
         printf("\n\t\t\t\t3. Exit");
         printf("\n\n\t\t\t\tEnter your choice: ");
-        scanf("%d", &option);
-
+        
+        // Read input as a string
+        fgets(input, sizeof(input), stdin);
+        
+        // Check if the input is a valid integer
+        if (sscanf(input, "%d", &option) != 1) {
+            printf("Invalid option! Please try again.\n");
+            printf("Press ↵ key to continue...");
+            getch(); // Wait for user input
+            continue; // Skip the rest of the loop and prompt again
+        }
+        
         switch (option)
         {
         case 1:
             loginMenu(username, password);
-            strcpy(u->name, username);
-            strcpy(u->password, password);
             return;
+
         case 2:
             registerMenu(username, password);
             break;
         case 3:
-            exit(1);
-            break;
-        default:
-            printf("Insert a valid operation!\n");
-        }
-    } while (option != 3);
-}
+            exit(0);
 
+        default:
+            printf("Invalid option! Please try again.\n");
+            printf("Press ↵ key to continue...");
+            getchar(); // Wait for user input
+            break;
+        }
+    } while (1);
+}
 void mainMenu(struct User u)
 {
     int option;
@@ -101,11 +118,12 @@ void mainMenu(struct User u)
             exit(1);
             break;
         default:
-            printf("Invalid operation!\n");
+            printf("Invalid option! Please try again.\n");
+            printf("Press ↵ key to continue...");
         }
-        printf("\nPress any key to continue...");
-        getchar(); // To consume the newline character left by scanf
-        getchar(); // To wait for user input
+            printf("Invalid option! Please try again.\n");
+            printf("Press ↵ key to continue...");
+        getch(); // Wait for user input
     } while (option != 8);
 }
 

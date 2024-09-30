@@ -1,11 +1,16 @@
-objects = src/main.o src/system.o src/auth.o
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c11
+SRCS = src/main.c src/atm_operations.c
+OBJS = $(SRCS:.c=.o)
+EXEC = atm_system
 
-atm : $(objects)
-	cc -o atm $(objects)
+all: $(EXEC)
 
-src/main.o : src/header.h
-src/system.o : src/header.h
-src/auth.o : src/header.h
+$(EXEC): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
 
-clean :
-	rm -f $(objects) atm
+%.o: %.c src/header.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(EXEC)

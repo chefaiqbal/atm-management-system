@@ -411,3 +411,228 @@ int getch()
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     return ch;
 }
+
+int accountBelongsToUser(int userId, int accountId) {
+    FILE* fp = fopen("../data/records.txt", "r");
+    if (fp == NULL) {
+        return 0;
+    }
+
+    int id, user_id, acc_id;
+    char name[50], date[20], country[50], phone[20], type[20];
+    float balance;
+
+    while (fscanf(fp, "%d %d %s %d %s %s %s %f %s", &id, &user_id, name, &acc_id, date, country, phone, &balance, type) == 9) {
+        if (user_id == userId && acc_id == accountId) {
+            fclose(fp);
+            return 1;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int updateAccountField(int accountId, const char* field, const char* newValue) {
+    FILE* fp = fopen("../data/records.txt", "r");
+    FILE* tempFp = fopen("../data/temp_records.txt", "w");
+
+    if (fp == NULL || tempFp == NULL) {
+        if (fp) fclose(fp);
+        if (tempFp) fclose(tempFp);
+        return 0;
+    }
+
+    int id, user_id, acc_id;
+    char name[50], date[20], country[50], phone[20], type[20];
+    float balance;
+    int updated = 0;
+
+    while (fscanf(fp, "%d %d %s %d %s %s %s %f %s", &id, &user_id, name, &acc_id, date, country, phone, &balance, type) == 9) {
+        if (acc_id == accountId) {
+            if (strcmp(field, "country") == 0) {
+                strcpy(country, newValue);
+            } else if (strcmp(field, "phone") == 0) {
+                strcpy(phone, newValue);
+            }
+            updated = 1;
+        }
+        fprintf(tempFp, "%d %d %s %d %s %s %s %.2f %s\n", id, user_id, name, acc_id, date, country, phone, balance, type);
+    }
+
+    fclose(fp);
+    fclose(tempFp);
+
+    if (updated) {
+        remove("../data/records.txt");
+        rename("../data/temp_records.txt", "../data/records.txt");
+        return 1;
+    } else {
+        remove("../data/temp_records.txt");
+        return 0;
+    }
+}
+
+void displayAccountDetails(int accountId) {
+    FILE* fp = fopen("../data/records.txt", "r");
+    if (fp == NULL) {
+        printf("\n\tError: Unable to open records file.\n");
+        return;
+    }
+
+    int id, user_id, acc_id;
+    char name[50], date[20], country[50], phone[20], type[20];
+    float balance;
+    int found = 0;
+
+    while (fscanf(fp, "%d %d %s %d %s %s %s %f %s", &id, &user_id, name, &acc_id, date, country, phone, &balance, type) == 9) {
+        if (acc_id == accountId) {
+            found = 1;
+            printf("\n\tAccount Details:");
+            printf("\n\t------------------");
+            printf("\n\tAccount ID: %d", acc_id);
+            printf("\n\tName: %s", name);
+            printf("\n\tDate of Creation: %s", date);
+            printf("\n\tCountry: %s", country);
+            printf("\n\tPhone: %s", phone);
+            printf("\n\tBalance: $%.2f", balance);
+            printf("\n\tAccount Type: %s", type);
+
+            if (strcmp(type, "current") == 0) {
+                printf("\n\n\tYou will not get interests because the account is of type current.");
+            } else {
+                float interestRate = getInterestRate(type);
+                float monthlyInterest = (balance * interestRate) / 12;
+                printf("\n\n\tYou will get $%.2f as interest on day %s of every month.", monthlyInterest, date);
+            }
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    if (!found) {
+        printf("\n\tError: Account not found.\n");
+    }
+}
+
+float getInterestRate(const char* accountType) {
+    if (strcmp(accountType, "savings") == 0) return 0.07;
+    if (strcmp(accountType, "fixed01") == 0) return 0.04;
+    if (strcmp(accountType, "fixed02") == 0) return 0.05;
+    if (strcmp(accountType, "fixed03") == 0) return 0.08;
+    return 0.0; // Default case (shouldn't happen)
+}
+
+int performTransaction(int accountId, int transactionType, float amount) {
+    FILE* fp = fopen("../data/records.txt", "r");
+    FILE* tempFp = fopen("../data/temp_records.txt", "w");
+
+    if (fp == NULL || tempFp == NULL) {
+        if (fp) fclose(fp);
+        if (tempFp) fclose(tempFp);
+        return -2; // Error opening files
+    }
+
+    int id, user_id, acc_id;
+    char name[50], date[20], country[50], phone[20], type[20];
+    float balance;
+    int updated = 0;
+
+    while (fscanf(fp, "%d %d %s %d %s %s %s %f %s", &id, &user_id, name, &acc_id, date, country, phone, &balance, type) == 9) {
+        if (acc_id == accountId) {
+            if (strncmp(type, "fixed", 5) == 0) {
+                fprintf(tempFp, "%d %d %s %d %s %s %s %.2f %s\n", id, user_id, name, acc_id, date, country, phone, balance, type);
+                fclose(fp);
+                fclose(tempFp);
+                remove("../data/temp_records.txt");
+                return -1; // Transaction not allowed for fixed accounts
+            }
+
+            if (transactionType == 1) { // Deposit
+                balance += amount;
+                updated = 1;
+            } else if (transactionType == 2) { // Withdraw
+                if (balance >= amount) {
+                    balance -= amount;
+                    updated = 1;
+                } else {
+                    fprintf(tempFp, "%d %d %s %d %s %s %s %.2f %s\n", id, user_id, name, acc_id, date, country, phone, balance, type);
+                    fclose(fp);
+                    fclose(tempFp);
+                    remove("../data/temp_records.txt");
+                    return 0; // Insufficient balance
+                }
+            }
+        }
+        fprintf(tempFp, "%d %d %s %d %s %s %s %.2f %s\n", id, user_id, name, acc_id, date, country, phone, balance, type);
+    }
+
+    fclose(fp);
+    fclose(tempFp);
+
+    if (updated) {
+        remove("../data/records.txt");
+        rename("../data/temp_records.txt", "../data/records.txt");
+        return 1; // Transaction successful
+    } else {
+        remove("../data/temp_records.txt");
+        return -2; // Error processing transaction
+    }
+}
+
+int getUserId(const char* username) {
+    FILE* fp = fopen("../data/users.txt", "r");
+    if (fp == NULL) {
+        return -1;
+    }
+
+    int id;
+    char name[50], password[50];
+
+    while (fscanf(fp, "%d %s %s", &id, name, password) == 3) {
+        if (strcmp(name, username) == 0) {
+            fclose(fp);
+            return id;
+        }
+    }
+
+    fclose(fp);
+    return -1; // User not found
+}
+
+int changeAccountOwner(int accountId, int newOwnerId) {
+    FILE* fp = fopen("../data/records.txt", "r");
+    FILE* tempFp = fopen("../data/temp_records.txt", "w");
+
+    if (fp == NULL || tempFp == NULL) {
+        if (fp) fclose(fp);
+        if (tempFp) fclose(tempFp);
+        return 0;
+    }
+
+    int id, user_id, acc_id;
+    char name[50], date[20], country[50], phone[20], type[20];
+    float balance;
+    int updated = 0;
+
+    while (fscanf(fp, "%d %d %s %d %s %s %s %f %s", &id, &user_id, name, &acc_id, date, country, phone, &balance, type) == 9) {
+        if (acc_id == accountId) {
+            user_id = newOwnerId;
+            updated = 1;
+        }
+        fprintf(tempFp, "%d %d %s %d %s %s %s %.2f %s\n", id, user_id, name, acc_id, date, country, phone, balance, type);
+    }
+
+    fclose(fp);
+    fclose(tempFp);
+
+    if (updated) {
+        remove("../data/records.txt");
+        rename("../data/temp_records.txt", "../data/records.txt");
+        return 1;
+    } else {
+        remove("../data/temp_records.txt");
+        return 0;
+    }
+}

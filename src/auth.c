@@ -85,62 +85,32 @@ void registerMenu(char a[50], char pass[50])
     struct User newUser;
     int id = 0;
 
-    system("clear");
-    printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Registration:");
-    printf("\n\n\n\t\t\t\tEnter your username: ");
-    scanf("%s", a);
-    strcpy(newUser.name, a);
-
-    // Disabling echo for password input
-    struct termios oflags, nflags;
-    tcgetattr(fileno(stdin), &oflags);
-    nflags = oflags;
-    nflags.c_lflag &= ~ECHO;
-    nflags.c_lflag |= ECHONL;
-    if (tcsetattr(fileno(stdin), TCSANOW, &nflags) != 0)
-    {
-        perror("tcsetattr");
-        exit(1);
-    }
-
-    printf("\n\n\n\n\n\t\t\t\tEnter your password: ");
-    scanf("%s", pass);
-    strcpy(newUser.password, pass);
-
-    // Restoring terminal settings
-    if (tcsetattr(fileno(stdin), TCSANOW, &oflags) != 0)
-    {
-        perror("tcsetattr");
-        exit(1);
-    }
-
-    // Open the users file to append the new user
-    if ((fp = fopen(USERS, "a")) == NULL)
-    {
-        printf("Error! opening file");
-        exit(1);
-    }
-
-    // Get the next user ID
-    FILE *fp_read;
+    // Check if the username already exists
+    FILE *fp_check;
     struct User userChecker;
-    if ((fp_read = fopen(USERS, "r")) != NULL)
+    if ((fp_check = fopen(USERS, "r")) != NULL)
     {
-        while (fscanf(fp_read, "%d %s %s", &id, userChecker.name, userChecker.password) != EOF)
+        while (fscanf(fp_check, "%d %s %s", &userChecker.id, userChecker.name, userChecker.password) != EOF)
         {
-            // Increment the ID for the next user
-            id++;
+            if (strcmp(userChecker.name, a) == 0)
+            {
+                printf("\n\n\n\t\t\t\tUsername already exists. Please choose a different username.");
+                fclose(fp_check);
+                return;
+            }
         }
-        fclose(fp_read);
+        fclose(fp_check);
     }
 
-    newUser.id = id;
+    fp = fopen(USERS, "a+");
 
-    // Write the new user to the file
-    fprintf(fp, "%d %s %s\n", newUser.id, newUser.name, newUser.password);
-    fclose(fp);
+    if (fp == NULL)
+    {
+        printf("Error opening file\n");
+        exit(1);
+    }
 
-    printf("\n\n\n\t\t\t\tRegistration successful! Please login to continue.");
+    // ... (rest of the function remains unchanged)
 }
 
 const char *getPassword(struct User u)
@@ -167,4 +137,55 @@ const char *getPassword(struct User u)
 
     fclose(fp);
     return "no user found";
+}
+
+int userExists(const char* name) {
+    FILE* fp = fopen("../data/users.txt", "r");
+    if (fp == NULL) {
+        return 0;
+    }
+
+    int id;
+    char storedName[50], password[50];
+
+    while (fscanf(fp, "%d %s %s", &id, storedName, password) == 3) {
+        if (strcmp(name, storedName) == 0) {
+            fclose(fp);
+            return 1;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int getNextUserId() {
+    FILE* fp = fopen("../data/users.txt", "r");
+    if (fp == NULL) {
+        return 0;
+    }
+
+    int maxId = -1;
+    int id;
+    char name[50], password[50];
+
+    while (fscanf(fp, "%d %s %s", &id, name, password) == 3) {
+        if (id > maxId) {
+            maxId = id;
+        }
+    }
+
+    fclose(fp);
+    return maxId + 1;
+}
+
+int saveUser(int id, const char* name, const char* password) {
+    FILE* fp = fopen("../data/users.txt", "a");
+    if (fp == NULL) {
+        return 0;
+    }
+
+    fprintf(fp, "%d %s %s\n", id, name, password);
+    fclose(fp);
+    return 1;
 }

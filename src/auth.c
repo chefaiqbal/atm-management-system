@@ -1,191 +1,112 @@
-#include <termios.h>
+#define _POSIX_C_SOURCE 200809L
 #include "header.h"
+#include <termios.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <sqlite3.h>
 
-char *USERS = "./data/users.txt";
+extern char a[50];  // For username
+extern char pass[50];
 
-void loginMenu(char a[50], char pass[50])
+// Add this function prototype
+int authenticateUser(const char* name, const char* password, struct User* user);
+
+
+
+extern int getch(void);
+
+void loginMenu(void)
 {
-    struct termios oflags, nflags;
-    struct User userChecker;
-    FILE *fp;
+    struct User user;
     int authenticated = 0;
     int failedAttempts = 0;
 
     while (failedAttempts < 3)
     {
         system("clear");
-        printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Login:");
-        printf("\n\n\n\t\t\t\tEnter your username: ");
-        scanf("%s", a);
+        printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Login:\n");
+        printf("\n\t\t\t\tEnter your username: ");
+        char username[MAX_NAME_LENGTH];
+        scanf("%s", username);
 
-        // disabling echo
-        tcgetattr(fileno(stdin), &oflags);
-        nflags = oflags;
-        nflags.c_lflag &= ~ECHO;
-        nflags.c_lflag |= ECHONL;
+        // Disable echo for password input
+        struct termios oldt, newt;
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+        printf("\n\t\t\t\tEnter your password: ");
+        char password[MAX_PASSWORD_LENGTH];
+        scanf("%s", password);
 
-        if (tcsetattr(fileno(stdin), TCSANOW, &nflags) != 0)
+        // Restore terminal settings
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+        printf("\n");
+
+        if (authenticateUser(username, password, &user) == 0)
         {
-            perror("tcsetattr");
-            exit(1);
-        }
-        printf("\n\n\n\n\n\t\t\t\tEnter the password to login:");
-        scanf("%s", pass);
-
-        // restore terminal
-        if (tcsetattr(fileno(stdin), TCSANOW, &oflags) != 0)
-        {
-            perror("tcsetattr");
-            exit(1);
-        }
-
-        // Open the users file to read and authenticate
-        if ((fp = fopen(USERS, "r")) == NULL)
-        {
-            printf("Error! opening file");
-            exit(1);
-        }
-
-        while (fscanf(fp, "%d %s %s", &userChecker.id, userChecker.name, userChecker.password) != EOF)
-        {
-            if (strcmp(userChecker.name, a) == 0 && strcmp(userChecker.password, pass) == 0)
-            {
-                authenticated = 1;
-                break;
-            }
-        }
-
-        fclose(fp);
-
-        if (authenticated)
-        {
-            printf("Login successful!\n");
-            getch(); // Wait for user input
-            // Proceed to main menu or other functionality
-            mainMenu(userChecker);
-            return;
+            authenticated = 1;
+            break;
         }
         else
         {
             failedAttempts++;
             printf("Invalid username or password! Attempt %d of 3\n", failedAttempts);
-            getch(); // Wait for user input
+            printf("Press Enter to continue...");
+            getchar(); // Wait for user to press Enter
         }
     }
 
-    printf("Too many failed login attempts. Exiting...\n");
-    exit(1);
+    if (authenticated)
+    {
+        printf("Login successful!\n");
+        printf("Press Enter to continue...");
+        getchar(); // Wait for user input
+        userMenu(&user); // Correct function call
+    }
+    else
+    {
+        printf("Too many failed login attempts. Exiting...\n");
+        exit(1);
+    }
 }
 
-// Function to handle user registration
-void registerMenu(char a[50], char pass[50])
+void registerUser(void)
 {
-    FILE *fp;
     struct User newUser;
-    int id = 0;
-
-    // Check if the username already exists
-    FILE *fp_check;
-    struct User userChecker;
-    if ((fp_check = fopen(USERS, "r")) != NULL)
+    char username[MAX_NAME_LENGTH];
+    char password[MAX_PASSWORD_LENGTH];
+    
+    system("clear");
+    printf("\n\n\n\t\t\t\t   Bank Management System\n\t\t\t\t\t User Registration:\n");
+    printf("\n\t\t\t\tEnter your desired username: ");
+    scanf("%s", username);
+    
+    printf("\n\t\t\t\tEnter your desired password: ");
+    scanf("%s", password);
+    
+    // Check if username already exists
+    if (loadUser(username, &newUser) == 0)
     {
-        while (fscanf(fp_check, "%d %s %s", &userChecker.id, userChecker.name, userChecker.password) != EOF)
-        {
-            if (strcmp(userChecker.name, a) == 0)
-            {
-                printf("\n\n\n\t\t\t\tUsername already exists. Please choose a different username.");
-                fclose(fp_check);
-                return;
-            }
-        }
-        fclose(fp_check);
+        printf("\n\t\t\t\tUsername already exists. Please choose a different username.\n");
+        printf("Press Enter to continue...");
+        getchar(); // Wait for user to press Enter
+        getchar();
+        return;
     }
 
-    fp = fopen(USERS, "a+");
+    strcpy(newUser.name, username);
+    strcpy(newUser.password, password);
 
-    if (fp == NULL)
+    if (saveUser(&newUser) != 0)
     {
-        printf("Error opening file\n");
-        exit(1);
+        printf("\n\t\t\t\tError registering user. Please try again.\n");
     }
-
-    // ... (rest of the function remains unchanged)
-}
-
-const char *getPassword(struct User u)
-{
-    FILE *fp;
-    struct User userChecker;
-    static char password[50]; // Use a static variable to avoid returning the address of a local variable
-
-    if ((fp = fopen("./data/users.txt", "r")) == NULL)
+    else
     {
-        printf("Error! opening file");
-        exit(1);
+        printf("\n\t\t\t\tRegistration successful! Your user ID is: %d\n", newUser.id);
     }
-
-    while (fscanf(fp, "%d %s %s", &userChecker.id, userChecker.name, userChecker.password) != EOF)
-    {
-        if (strcmp(userChecker.name, u.name) == 0)
-        {
-            fclose(fp);
-            strcpy(password, userChecker.password); // Copy the password to the static variable
-            return password;
-        }
-    }
-
-    fclose(fp);
-    return "no user found";
-}
-
-int userExists(const char* name) {
-    FILE* fp = fopen("../data/users.txt", "r");
-    if (fp == NULL) {
-        return 0;
-    }
-
-    int id;
-    char storedName[50], password[50];
-
-    while (fscanf(fp, "%d %s %s", &id, storedName, password) == 3) {
-        if (strcmp(name, storedName) == 0) {
-            fclose(fp);
-            return 1;
-        }
-    }
-
-    fclose(fp);
-    return 0;
-}
-
-int getNextUserId() {
-    FILE* fp = fopen("../data/users.txt", "r");
-    if (fp == NULL) {
-        return 0;
-    }
-
-    int maxId = -1;
-    int id;
-    char name[50], password[50];
-
-    while (fscanf(fp, "%d %s %s", &id, name, password) == 3) {
-        if (id > maxId) {
-            maxId = id;
-        }
-    }
-
-    fclose(fp);
-    return maxId + 1;
-}
-
-int saveUser(int id, const char* name, const char* password) {
-    FILE* fp = fopen("../data/users.txt", "a");
-    if (fp == NULL) {
-        return 0;
-    }
-
-    fprintf(fp, "%d %s %s\n", id, name, password);
-    fclose(fp);
-    return 1;
+    printf("Press Enter to continue...");
+    getchar(); // Wait for user to press Enter
+    getchar();
 }

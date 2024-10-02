@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <limits.h>
+#include <sqlite3.h>
 
 #define MAX_USERS 100
 #define MAX_ACCOUNTS 1000
@@ -39,30 +38,48 @@ struct Account {
     char accountType[MAX_ACCOUNT_TYPE_LENGTH];
 };
 
-// Function prototypes
-void mainMenu(void);
-void loginMenu(void);
-void registerUser(void);
-void userMenu(struct User* user);
-void createNewAccount(struct User* user);
-void checkAccountDetails(struct User* user);
-void updateAccountInfo(struct User* user);
-void removeAccount(struct User* user);
-void checkOwnedAccounts(struct User* user);
-void makeTransaction(struct User* user);
-void transferOwnership(struct User* user);
-void saveUsers(void);
-void loadUsers(void);
-void saveAccounts(void);
-void loadAccounts(void);
-int findUser(const char* name);
-int findAccount(int accountId);
-double calculateInterest(struct Account* account);
-
-// Global variables (to be defined in main.c)
+// Global variables
 extern struct User users[MAX_USERS];
 extern int userCount;
 extern struct Account accounts[MAX_ACCOUNTS];
 extern int accountCount;
+extern sqlite3* db;
+
+// Database operations
+int saveUser(struct User* user);
+int loadUser(const char* name, struct User* user);
+int loadUserById(int id, struct User* user); // **Added**
+int saveAccount(struct Account* account);
+int loadAccount(int accountId, struct Account* account);
+int updateAccount(struct Account* account);
+int deleteAccount(int accountId);
+int authenticateUser(const char* name, const char* password, struct User* user);
+
+// Menu operations
+void mainMenu(void);
+void loginMenu(void);
+void registerUser(void);
+void userMenu(struct User* user);
+
+// ATM operations
+void createNewAccount(struct User* user);
+void checkAccountDetails(struct User* user);
+void makeTransaction(struct User* user);
+void updateAccountInfo(struct User* user);
+void removeAccount(struct User* user);
+void transferOwnership(struct User* user);
+void checkOwnedAccounts(struct User* user);
+double calculateInterest(const struct Account* account);
+
+// System operations
+void getCurrentDate(struct Date* date);
+void success(struct User* u);
+int getch(void);
+float getInterestRate(const char* accountType);
+
+// Initialization and database
+void ensureDataDirectoryExists(void);
+int initDatabase(void);
+int closeDatabase(void);
 
 #endif // HEADER_H

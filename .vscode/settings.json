@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.go": "go",
+        "header.h": "c"
+    }
+}

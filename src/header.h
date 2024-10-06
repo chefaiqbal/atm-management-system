@@ -13,6 +13,7 @@
 #define MAX_COUNTRY_LENGTH 50
 #define MAX_PHONE_LENGTH 20
 #define MAX_TYPE_LENGTH 20
+#define MAX_TRANSACTION_TYPE_LENGTH 10
 
 struct Date {
     int day;
@@ -37,6 +38,14 @@ struct Account {
     char type_of_account[MAX_TYPE_LENGTH];
 };
 
+struct Transaction {
+    int id; // Primary key
+    int account_id;
+    char type[MAX_TRANSACTION_TYPE_LENGTH]; // "deposit" or "withdraw"
+    double amount;
+    char date[11]; // Format: YYYY-MM-DD
+};
+
 // Global variables
 extern struct User users[MAX_USERS];
 extern int userCount;
@@ -53,6 +62,10 @@ int loadAccount(int id, struct Account* account);
 int updateAccount(struct Account* account);
 int deleteAccount(int id);
 int authenticateUser(const char* name, const char* password, struct User* user);
+
+// Transaction operations
+int saveTransaction(struct Transaction* transaction);
+void viewTransactions(int account_id);
 
 // Menu operations
 void mainMenu(void);

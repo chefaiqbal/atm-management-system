@@ -39,30 +39,45 @@ int initDatabase(void) {
                                       "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                                       "user_id INTEGER NOT NULL,"
                                       "user_name TEXT NOT NULL,"
-                                      "date_of_creation TEXT NOT NULL,"
+                                      "date_of_creation TEXT NOT NULL," // Stored as YYYY-MM-DD
                                       "country TEXT NOT NULL,"
                                       "phone TEXT NOT NULL,"
                                       "balance REAL NOT NULL,"
                                       "type_of_account TEXT NOT NULL,"
-                                      "FOREIGN KEY (user_id) REFERENCES users(id));";
+                                      "FOREIGN KEY(user_id) REFERENCES users(id));";
+
+    const char *sql_create_transactions = "CREATE TABLE IF NOT EXISTS transactions ("
+                                         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                                         "account_id INTEGER NOT NULL,"
+                                         "type TEXT NOT NULL," // "deposit" or "withdraw"
+                                         "amount REAL NOT NULL,"
+                                         "date TEXT NOT NULL," // Stored as YYYY-MM-DD
+                                         "FOREIGN KEY(account_id) REFERENCES accounts(id));";
 
     char *errmsg = NULL;
-    int rc_exec;
 
-    rc_exec = sqlite3_exec(db, sql_create_users, 0, 0, &errmsg);
-    if (rc_exec != SQLITE_OK) {
+    rc = sqlite3_exec(db, sql_create_users, 0, 0, &errmsg);
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error (create users): %s\n", errmsg);
         sqlite3_free(errmsg);
         sqlite3_close(db);
-        return rc_exec;
+        return rc;
     }
 
-    rc_exec = sqlite3_exec(db, sql_create_accounts, 0, 0, &errmsg);
-    if (rc_exec != SQLITE_OK) {
+    rc = sqlite3_exec(db, sql_create_accounts, 0, 0, &errmsg);
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error (create accounts): %s\n", errmsg);
         sqlite3_free(errmsg);
         sqlite3_close(db);
-        return rc_exec;
+        return rc;
+    }
+
+    rc = sqlite3_exec(db, sql_create_transactions, 0, 0, &errmsg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error (create transactions): %s\n", errmsg);
+        sqlite3_free(errmsg);
+        sqlite3_close(db);
+        return rc;
     }
 
     // No need to set sequences manually as SQLite handles AUTOINCREMENT
@@ -78,7 +93,7 @@ int closeDatabase(void) {
 // Main function to start the ATM system
 int main(void) {
     ensureDataDirectoryExists();
-    
+
     if (initDatabase() != SQLITE_OK) {
         fprintf(stderr, "Failed to initialize database\n");
         return 1;

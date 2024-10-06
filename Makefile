@@ -1,17 +1,13 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-LDFLAGS = -lsqlite3
+CFLAGS = -Wall -Wextra -std=c11 -g
+LDFLAGS = -lsqlite3 -lssl -lcrypto
 SRC_DIR = src
 OBJ_DIR = obj
-BIN = atm_system
+BIN_DIR = bin
+BIN = $(BIN_DIR)/atm_system
 
 # Source files
-SRCS = $(SRC_DIR)/main.c \
-       $(SRC_DIR)/menu.c \
-       $(SRC_DIR)/auth.c \
-       $(SRC_DIR)/database_operations.c \
-       $(SRC_DIR)/atm_operations.c \
-       $(SRC_DIR)/system.c
+SRCS = $(wildcard $(SRC_DIR)/*.c)
 
 # Object files
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
@@ -20,16 +16,23 @@ OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 all: $(BIN)
 
 # Link all object files to create the executable
-$(BIN): $(OBJS)
+$(BIN): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Compile each .c file to .o file
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/header.h
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/header.h | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean up object files and the executable
+# Create directories
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+# Clean up object files and the executable, but keep the data directory
 clean:
-	rm -f $(OBJ_DIR)/*.o $(BIN)
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
 # Phony targets
 .PHONY: all clean

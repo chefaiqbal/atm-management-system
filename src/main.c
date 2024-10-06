@@ -37,30 +37,35 @@ int initDatabase(void) {
 
     const char *sql_create_accounts = "CREATE TABLE IF NOT EXISTS accounts ("
                                       "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                                      "userId INTEGER NOT NULL,"
-                                      "userName TEXT NOT NULL,"
-                                      "accountId INTEGER UNIQUE NOT NULL,"
-                                      "creationDate TEXT NOT NULL,"
+                                      "user_id INTEGER NOT NULL,"
+                                      "user_name TEXT NOT NULL,"
+                                      "date_of_creation TEXT NOT NULL,"
                                       "country TEXT NOT NULL,"
                                       "phone TEXT NOT NULL,"
                                       "balance REAL NOT NULL,"
-                                      "accountType TEXT NOT NULL,"
-                                      "FOREIGN KEY (userId) REFERENCES users(id));";
+                                      "type_of_account TEXT NOT NULL,"
+                                      "FOREIGN KEY (user_id) REFERENCES users(id));";
 
     char *errmsg = NULL;
-    int rc_exec = sqlite3_exec(db, sql_create_users, 0, 0, &errmsg);
+    int rc_exec;
+
+    rc_exec = sqlite3_exec(db, sql_create_users, 0, 0, &errmsg);
     if (rc_exec != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\n", errmsg);
+        fprintf(stderr, "SQL error (create users): %s\n", errmsg);
         sqlite3_free(errmsg);
+        sqlite3_close(db);
         return rc_exec;
     }
 
     rc_exec = sqlite3_exec(db, sql_create_accounts, 0, 0, &errmsg);
     if (rc_exec != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\n", errmsg);
+        fprintf(stderr, "SQL error (create accounts): %s\n", errmsg);
         sqlite3_free(errmsg);
+        sqlite3_close(db);
         return rc_exec;
     }
+
+    // No need to set sequences manually as SQLite handles AUTOINCREMENT
 
     return SQLITE_OK;
 }

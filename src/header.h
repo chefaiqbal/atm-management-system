@@ -8,17 +8,17 @@
 
 #define MAX_USERS 1000
 #define MAX_ACCOUNTS 10000
-#define MAX_NAME_LENGTH 50
-#define MAX_PASSWORD_LENGTH 64
+#define MAX_NAME_LENGTH 100
+#define MAX_PASSWORD_LENGTH 100
 #define MAX_COUNTRY_LENGTH 50
 #define MAX_PHONE_LENGTH 20
 #define MAX_TYPE_LENGTH 20
-#define MAX_TRANSACTION_TYPE_LENGTH 10
+#define MAX_TRANSACTION_TYPE_LENGTH 20
 
 struct Date {
-    int day;
-    int month;
     int year;
+    int month;
+    int day;
 };
 
 struct User {
@@ -41,7 +41,7 @@ struct Account {
 struct Transaction {
     int id; // Primary key
     int account_id;
-    char type[MAX_TRANSACTION_TYPE_LENGTH]; // "deposit" or "withdraw"
+    char type[MAX_TRANSACTION_TYPE_LENGTH]; // "deposit", "withdraw", or "interest"
     double amount;
     char date[11]; // Format: YYYY-MM-DD
 };
@@ -97,5 +97,10 @@ int closeDatabase(void);
 // Helper functions
 int isNumber(const char* str);
 int isValidAccountType(const char* type);
+
+// Add these function declarations
+int updateAccount(struct Account* account);
+int deleteAccount(int id);
+void getCurrentDateStr(char* dateStr, size_t size);
 
 #endif // HEADER_H

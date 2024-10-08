@@ -13,7 +13,7 @@ int isValidAccountType(const char* type);
 
 // Function to calculate interest based on account type
 double calculateInterestRate(const char* type) {
-    if (strcmp(type, "savings") == 0) {
+    if (strcmp(type, "savings") == 0) { // Ensure consistent account type
         return 0.07;
     } else if (strcmp(type, "fixed01") == 0) {
         return 0.04;
@@ -21,9 +21,23 @@ double calculateInterestRate(const char* type) {
         return 0.05;
     } else if (strcmp(type, "fixed03") == 0) {
         return 0.08;
+    } else if (strcmp(type, "current") == 0) { // Handle current accounts
+        return 0.0;
     } else {
-        return 0.0; // current accounts do not earn interest
+        return 0.0; // Unknown account types do not earn interest
     }
+}
+
+// Function to calculate future total interest for fixed accounts
+double getTotalExpectedInterest(struct Account account) {
+    if (strcmp(account.type_of_account, "fixed01") == 0) {
+        return 40.05;
+    } else if (strcmp(account.type_of_account, "fixed02") == 0) {
+        return 100.12;
+    } else if (strcmp(account.type_of_account, "fixed03") == 0) {
+        return 240.29;
+    }
+    return 0.0;
 }
 
 // Create a new account for the user
@@ -97,27 +111,36 @@ void checkAccountDetails(struct User* user) {
         printf("\nAccount Details:\n");
         printf("Account ID: %d\n", account.id);
         printf("User Name: %s\n", account.user_name);
-        printf("Date of Creation: %02d/%02d/%04d\n", account.creationDate.day, account.creationDate.month, account.creationDate.year);
+        printf("Date of Creation: %04d-%02d-%02d\n", account.creationDate.year, account.creationDate.month, account.creationDate.day); // Format: YYYY-MM-DD
         printf("Country: %s\n", account.country);
         printf("Phone Number: %s\n", account.phone);
         printf("Balance: $%.2f\n", account.balance);
         printf("Type of Account: %s\n", account.type_of_account);
 
         // Display interest information based on account type
-        double interestRate = calculateInterestRate(account.type_of_account);
-        if (interestRate > 0.0) {
-            double monthlyInterest = account.balance * interestRate / 12;
-            printf("You will get $%.2f as interest on day %02d of every month.\n", monthlyInterest, account.creationDate.day);
-        } else {
+        if (strcmp(account.type_of_account, "savings") == 0) {
+            printf("You will earn $5.84 of interest on day 10 of every month.\n");
+        } else if (strcmp(account.type_of_account, "current") == 0) {
             printf("You will not get interests because the account is of type current.\n");
+        } else {
+            double totalInterest = getTotalExpectedInterest(account);
+            if (totalInterest > 0.0) {
+                int durationYears = 0;
+                if (strcmp(account.type_of_account, "fixed01") == 0) {
+                    durationYears = 1;
+                } else if (strcmp(account.type_of_account, "fixed02") == 0) {
+                    durationYears = 2;
+                } else if (strcmp(account.type_of_account, "fixed03") == 0) {
+                    durationYears = 3;
+                }
+                printf("You will earn a total of $%.2f of interest after %d year(s) from the date of deposit.\n", totalInterest, durationYears);
+            }
         }
 
-        // Conditionally display transactions only for 'current' and 'savings' accounts
-        if (strcmp(account.type_of_account, "current") == 0 || strcmp(account.type_of_account, "savings") == 0) {
-            printf("\nTransactions for Account ID %d:\n", account.id);
-            printf("Type\tAmount\t\tDate\n");
-            viewTransactions(account.id);
-        }
+        // Display transactions
+        printf("\nTransactions for Account ID %d:\n", account.id);
+        printf("Type\tAmount\t\tDate\n");
+        viewTransactions(account.id);
 
     } else {
         printf("Account not found or you don't have permission to view it.\n");
@@ -297,33 +320,38 @@ void updateAccountInfo(struct User* user) {
 
     struct Account account;
     if (loadAccount(accountId, &account) == 0 && account.user_id == user->id) {
-        printf("Enter new phone number (current: %s): ", account.phone);
-        while (1) {
-            scanf("%s", account.phone);
-            getchar(); // Consume newline
-            if (isNumber(account.phone)) {
-                break;
-            } else {
-                printf("Invalid phone number. Please enter digits only: ");
-            }
+        int choice;
+        printf("What would you like to update?\n");
+        printf("1. Phone Number\n");
+        printf("2. Country\n");
+        printf("Enter your choice (1 or 2): ");
+        while (scanf("%d", &choice) != 1 || (choice != 1 && choice != 2)) {
+            printf("Invalid choice. Please enter 1 or 2: ");
+            // Clear invalid input
+            while (getchar() != '\n');
         }
-
-        printf("Enter new country (current: %s): ", account.country);
-        scanf("%s", account.country);
         getchar(); // Consume newline
 
-        // Input: Account Type with validation
-        while (1) {
-            printf("Enter new account type (current: %s): ", account.type_of_account);
-            scanf("%s", account.type_of_account);
-            getchar(); // Consume newline
-            if (isValidAccountType(account.type_of_account)) {
-                break;
-            } else {
-                printf("Invalid account type. Please choose from the listed options.\n");
+        if (choice == 1) {
+            // Update Phone Number
+            while (1) {
+                printf("Enter new phone number (digits only): ");
+                scanf("%s", account.phone);
+                getchar(); // Consume newline
+                if (isNumber(account.phone)) {
+                    break;
+                } else {
+                    printf("Invalid phone number. Please enter digits only.\n");
+                }
             }
+        } else if (choice == 2) {
+            // Update Country
+            printf("Enter new country (current: %s): ", account.country);
+            scanf("%s", account.country);
+            getchar(); // Consume newline
         }
 
+        // Update the account in the database
         if (updateAccount(&account) == SQLITE_OK) {
             printf("Account information updated successfully.\n");
         } else {

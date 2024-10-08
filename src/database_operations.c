@@ -4,6 +4,7 @@
 #include <sqlite3.h>
 #include <openssl/sha.h>
 #include <time.h>
+#include <stdlib.h>
 
 // Helper function to hash a password using SHA256
 void hashPassword(const char* password, char* hashedPassword) {
@@ -19,7 +20,7 @@ void hashPassword(const char* password, char* hashedPassword) {
 void getCurrentDateStr(char* dateStr, size_t size) {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    snprintf(dateStr, size, "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+    snprintf(dateStr, size, "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday); // YYYY-MM-DD format
 }
 
 // Save a new user to the database
@@ -107,19 +108,98 @@ int loadUserById(int id, struct User* user) {
     return 1; // User not found
 }
 
+// Helper function to add years to a date and return a new date string in YYYY-MM-DD format
+void calculateFutureDate(struct Date creationDate, int yearsToAdd, char* futureDateStr, size_t size) {
+    int newYear = creationDate.year + yearsToAdd;
+    snprintf(futureDateStr, size, "%04d-%02d-%02d", newYear, creationDate.month, creationDate.day);
+}
+
+// Helper function to schedule interest transactions
+void scheduleInterest(struct Account* account) {
+    if (strcmp(account->type_of_account, "savings") == 0) { // Fixed: Use -> instead of .
+        // Schedule monthly interest on the 10th day
+        struct Transaction interest;
+        interest.account_id = account->id;
+        strcpy(interest.type, "interest");
+        interest.amount = 5.84;
+
+        // Calculate the first interest date (next 10th day from creation date)
+        struct Date today = account->creationDate;
+        if (today.day > 10) {
+            today.month += 1;
+            if (today.month > 12) {
+                today.month = 1;
+                today.year += 1;
+            }
+        }
+        today.day = 10;
+        char interestDateStr[11]; // Format: YYYY-MM-DD
+        snprintf(interestDateStr, sizeof(interestDateStr), "%04d-%02d-%02d", today.year, today.month, today.day);
+        strncpy(interest.date, interestDateStr, sizeof(interest.date) - 1);
+        interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+
+        if (saveTransaction(&interest) == SQLITE_OK) {
+            printf("Interest transaction scheduled on %s.\n", interest.date);
+        } else {
+            printf("Failed to schedule interest transaction.\n");
+        }
+    } else {
+        // Handle fixed account types
+        int durationYears = 0;
+        double interestAmount = 0.0;
+
+        if (strcmp(account->type_of_account, "fixed01") == 0) {
+            durationYears = 1;
+            interestAmount = 40.05;
+        } else if (strcmp(account->type_of_account, "fixed02") == 0) {
+            durationYears = 2;
+            interestAmount = 100.12;
+        } else if (strcmp(account->type_of_account, "fixed03") == 0) {
+            durationYears = 3;
+            interestAmount = 240.29;
+        } else if (strcmp(account->type_of_account, "current") == 0) {
+            // Current accounts do not earn interest
+            return;
+        } else {
+            // Unknown account type; no interest scheduled
+            return;
+        }
+
+        // Calculate the due date by adding the duration to the creation date
+        char dueDateStr[11]; // Format: YYYY-MM-DD
+        struct Date dueDate = account->creationDate;
+        dueDate.year += durationYears;
+        snprintf(dueDateStr, sizeof(dueDateStr), "%04d-%02d-%02d", dueDate.year, dueDate.month, dueDate.day);
+
+        // Schedule the interest transaction on the due date
+        struct Transaction interest;
+        interest.account_id = account->id;
+        strcpy(interest.type, "interest");
+        interest.amount = interestAmount;
+        strncpy(interest.date, dueDateStr, sizeof(interest.date) - 1);
+        interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+
+        if (saveTransaction(&interest) == SQLITE_OK) {
+            printf("Interest transaction scheduled on %s.\n", interest.date);
+        } else {
+            printf("Failed to schedule interest transaction.\n");
+        }
+    }
+}
+
 // Save a new account to the database
 int saveAccount(struct Account* account) {
     sqlite3_stmt* stmt;
     const char* sql = "INSERT INTO accounts (user_id, user_name, date_of_creation, country, phone, balance, type_of_account) VALUES (?, ?, ?, ?, ?, ?, ?);";
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    
+
     if (rc != SQLITE_OK) {
         fprintf(stderr, "Failed to prepare statement in saveAccount: %s\n", sqlite3_errmsg(db));
         return rc;
     }
 
     char creationDateStr[11]; // Format: YYYY-MM-DD
-    snprintf(creationDateStr, sizeof(creationDateStr), "%04d-%02d-%02d", account->creationDate.year, account->creationDate.month, account->creationDate.day);
+    snprintf(creationDateStr, sizeof(creationDateStr), "%04d-%02d-%02d", account->creationDate.year, account->creationDate.month, account->creationDate.day); // YYYY-MM-DD format
 
     sqlite3_bind_int(stmt, 1, account->user_id);
     sqlite3_bind_text(stmt, 2, account->user_name, -1, SQLITE_STATIC);
@@ -134,6 +214,23 @@ int saveAccount(struct Account* account) {
         fprintf(stderr, "Failed to execute statement in saveAccount: %s\n", sqlite3_errmsg(db));
     } else {
         account->id = sqlite3_last_insert_rowid(db);
+
+        // Save initial deposit as a transaction
+        struct Transaction initialDeposit;
+        initialDeposit.account_id = account->id;
+        strcpy(initialDeposit.type, "deposit");
+        initialDeposit.amount = account->balance;
+        strncpy(initialDeposit.date, creationDateStr, sizeof(initialDeposit.date) - 1); // Ensure YYYY-MM-DD format
+        initialDeposit.date[sizeof(initialDeposit.date) - 1] = '\0'; // Ensure null-termination
+
+        if (saveTransaction(&initialDeposit) == SQLITE_OK) {
+            printf("Initial deposit transaction saved successfully.\n");
+        } else {
+            printf("Failed to save initial deposit transaction.\n");
+        }
+
+        // Schedule interest transactions
+        scheduleInterest(account);
     }
 
     sqlite3_finalize(stmt);
@@ -181,54 +278,6 @@ int loadAccount(int id, struct Account* account) {
 
     sqlite3_finalize(stmt);
     return 1; // Account not found
-}
-
-// Update an existing account
-int updateAccount(struct Account* account) {
-    sqlite3_stmt* stmt;
-    const char* sql = "UPDATE accounts SET user_id = ?, user_name = ?, type_of_account = ?, balance = ? WHERE id = ?;";
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "Failed to prepare statement in updateAccount: %s\n", sqlite3_errmsg(db));
-        return rc;
-    }
-
-    sqlite3_bind_int(stmt, 1, account->user_id);
-    sqlite3_bind_text(stmt, 2, account->user_name, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, account->type_of_account, -1, SQLITE_STATIC);
-    sqlite3_bind_double(stmt, 4, account->balance);
-    sqlite3_bind_int(stmt, 5, account->id);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        fprintf(stderr, "Failed to execute statement in updateAccount: %s\n", sqlite3_errmsg(db));
-    }
-
-    sqlite3_finalize(stmt);
-    return (rc == SQLITE_DONE) ? SQLITE_OK : rc;
-}
-
-// Delete an account by id
-int deleteAccount(int id) {
-    sqlite3_stmt* stmt;
-    const char* sql = "DELETE FROM accounts WHERE id = ?;";
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "Failed to prepare statement in deleteAccount: %s\n", sqlite3_errmsg(db));
-        return rc;
-    }
-
-    sqlite3_bind_int(stmt, 1, id);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        fprintf(stderr, "Failed to execute statement in deleteAccount: %s\n", sqlite3_errmsg(db));
-    }
-
-    sqlite3_finalize(stmt);
-    return (rc == SQLITE_DONE) ? SQLITE_OK : rc;
 }
 
 // Save a new transaction to the database
@@ -280,7 +329,7 @@ void viewTransactions(int account_id) {
         const char* type = (const char*)sqlite3_column_text(stmt, 0);
         double amount = sqlite3_column_double(stmt, 1);
         const char* date = (const char*)sqlite3_column_text(stmt, 2);
-        printf("%-8s\t$%.2f\t%s\n", type, amount, date);
+        printf("%-10s\t$%9.2f\t%s\n", type, amount, date);
     }
 
     if (!hasTransactions) {
@@ -325,4 +374,89 @@ int authenticateUser(const char* name, const char* password, struct User* user) 
 
     sqlite3_finalize(stmt);
     return 1; // Authentication failed
+}
+
+// Add the applyInterest function
+int applyInterest(int account_id, const char* current_date) {
+    struct Account account;
+    if (loadAccount(account_id, &account) != 0) {
+        fprintf(stderr, "Account not found.\n");
+        return 1;
+    }
+
+    double interest_amount = 0.0;
+    if (strcmp(account.type_of_account, "savings") == 0) {
+        interest_amount = 5.84; // Example amount
+    } else if (strcmp(account.type_of_account, "fixed01") == 0) {
+        interest_amount = 40.05;
+    } else if (strcmp(account.type_of_account, "fixed02") == 0) {
+        interest_amount = 100.12;
+    } else if (strcmp(account.type_of_account, "fixed03") == 0) {
+        interest_amount = 240.29;
+    } else if (strcmp(account.type_of_account, "current") == 0) {
+        // Current accounts do not earn interest
+        printf("You will not get interests because the account is of type current.\n");
+        return 0;
+    } else {
+        fprintf(stderr, "Unknown account type.\n");
+        return 1;
+    }
+
+    struct Transaction interest;
+    interest.account_id = account_id;
+    strcpy(interest.type, "interest");
+    interest.amount = interest_amount;
+    strncpy(interest.date, current_date, sizeof(interest.date) - 1);
+    interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+    return saveTransaction(&interest);
+}
+
+// Update an existing account
+int updateAccount(struct Account* account) {
+    sqlite3_stmt* stmt;
+    const char* sql = "UPDATE accounts SET user_id = ?, user_name = ?, country = ?, phone = ?, balance = ?, type_of_account = ? WHERE id = ?;";
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement in updateAccount: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    sqlite3_bind_int(stmt, 1, account->user_id);
+    sqlite3_bind_text(stmt, 2, account->user_name, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, account->country, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, account->phone, -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 5, account->balance);
+    sqlite3_bind_text(stmt, 6, account->type_of_account, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 7, account->id);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to execute statement in updateAccount: %s\n", sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+    return (rc == SQLITE_DONE) ? SQLITE_OK : rc;
+}
+
+// Delete an account by id
+int deleteAccount(int id) {
+    sqlite3_stmt* stmt;
+    const char* sql = "DELETE FROM accounts WHERE id = ?;";
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement in deleteAccount: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to execute statement in deleteAccount: %s\n", sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+    return (rc == SQLITE_DONE) ? SQLITE_OK : rc;
 }

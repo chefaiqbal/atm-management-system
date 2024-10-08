@@ -419,6 +419,26 @@ int applyInterest(int account_id, const char* current_date) {
     if (strcmp(account.type_of_account, "savings") == 0) {
         // Calculate monthly interest for savings account
         interest_amount = account.balance * interest_rate / 12;
+        // Round to 2 decimal places
+        interest_amount = round(interest_amount * 100) / 100;
+        
+        // Debug print
+        printf("Debug: Calculated interest before rounding: %f\n", account.balance * interest_rate / 12);
+        printf("Debug: Rounded interest: %f\n", interest_amount);
+
+        // Update account balance
+        account.balance += interest_amount;
+        updateAccount(&account);
+
+        // Save new interest transaction
+        struct Transaction interest;
+        interest.account_id = account_id;
+        strcpy(interest.type, "interest");
+        interest.amount = interest_amount;
+        strncpy(interest.date, current_date, sizeof(interest.date) - 1);
+        interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+
+        return saveTransaction(&interest);
     } else if (strcmp(account.type_of_account, "fixed01") == 0 ||
                strcmp(account.type_of_account, "fixed02") == 0 ||
                strcmp(account.type_of_account, "fixed03") == 0) {
@@ -500,6 +520,30 @@ int deleteAccount(int id) {
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
         fprintf(stderr, "Failed to execute statement in deleteAccount: %s\n", sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+    return (rc == SQLITE_DONE) ? SQLITE_OK : rc;
+}
+
+// Update existing interest transaction
+int updateInterestTransaction(int account_id, const char* date, double new_amount) {
+    sqlite3_stmt* stmt;
+    const char* sql = "UPDATE transactions SET amount = ? WHERE account_id = ? AND type = 'interest' AND date = ?;";
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement in updateInterestTransaction: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    sqlite3_bind_double(stmt, 1, new_amount);
+    sqlite3_bind_int(stmt, 2, account_id);
+    sqlite3_bind_text(stmt, 3, date, -1, SQLITE_STATIC);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to execute statement in updateInterestTransaction: %s\n", sqlite3_errmsg(db));
     }
 
     sqlite3_finalize(stmt);

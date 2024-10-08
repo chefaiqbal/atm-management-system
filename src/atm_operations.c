@@ -14,6 +14,9 @@ int isValidAccountType(const char* type);
 // Declare calculateInterestRate as extern if used
 extern double calculateInterestRate(const char* accountType);
 
+// Add this line here
+extern int updateInterestTransaction(int account_id, const char* date, double new_amount);
+
 // Function to calculate future total interest for fixed accounts
 double getTotalExpectedInterest(struct Account account) {
     int durationYears = 0;
@@ -372,6 +375,33 @@ void removeAccount(struct User* user) {
         }
     } else {
         printf("Account not found or you don't have permission to remove it.\n");
+    }
+    success(user);
+}
+
+// Add this new function to src/atm_operations.c
+void updateInterestForAccount(struct User* user) {
+    int account_id;
+    char transaction_date[11];
+    double correct_interest;
+
+    printf("Enter the account ID to update interest: ");
+    scanf("%d", &account_id);
+    getchar(); // Consume newline
+
+    printf("Enter the date of the transaction to update (YYYY-MM-DD): ");
+    scanf("%10s", transaction_date);
+    getchar(); // Consume newline
+
+    printf("Enter the correct interest amount: ");
+    scanf("%lf", &correct_interest);
+    getchar(); // Consume newline
+
+    int result = updateInterestTransaction(account_id, transaction_date, correct_interest);
+    if (result == SQLITE_OK) {
+        printf("Interest transaction updated successfully.\n");
+    } else {
+        printf("Failed to update interest transaction.\n");
     }
     success(user);
 }

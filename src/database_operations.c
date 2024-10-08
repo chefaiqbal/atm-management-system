@@ -5,6 +5,10 @@
 #include <openssl/sha.h>
 #include <time.h>
 #include <stdlib.h>
+#include <math.h>
+
+// Function declaration is already in header.h, so it's optional here
+// double calculateInterestRate(const char* accountType);
 
 // Helper function to hash a password using SHA256
 void hashPassword(const char* password, char* hashedPassword) {
@@ -114,29 +118,48 @@ void calculateFutureDate(struct Date creationDate, int yearsToAdd, char* futureD
     snprintf(futureDateStr, size, "%04d-%02d-%02d", newYear, creationDate.month, creationDate.day);
 }
 
+// Implementation of calculateInterestRate
+double calculateInterestRate(const char* accountType) {
+    if (strcmp(accountType, "savings") == 0) {
+        return 0.07; // 7% annual interest rate for savings accounts
+    } else if (strcmp(accountType, "fixed01") == 0) {
+        return 0.04; // 4% annual interest rate for 1-year fixed accounts
+    } else if (strcmp(accountType, "fixed02") == 0) {
+        return 0.05; // 5% annual interest rate for 2-year fixed accounts
+    } else if (strcmp(accountType, "fixed03") == 0) {
+        return 0.08; // 8% annual interest rate for 3-year fixed accounts
+    } else if (strcmp(accountType, "current") == 0) {
+        return 0.0; // No interest for current accounts
+    } else {
+        return 0.0; // Default to no interest for unknown account types
+    }
+}
+
 // Helper function to schedule interest transactions
 void scheduleInterest(struct Account* account) {
-    if (strcmp(account->type_of_account, "savings") == 0) { // Fixed: Use -> instead of .
-        // Schedule monthly interest on the 10th day
+    if (strcmp(account->type_of_account, "savings") == 0) {
+        // Schedule monthly interest on the same day as the account creation date
         struct Transaction interest;
         interest.account_id = account->id;
         strcpy(interest.type, "interest");
-        interest.amount = 5.84;
 
-        // Calculate the first interest date (next 10th day from creation date)
-        struct Date today = account->creationDate;
-        if (today.day > 10) {
-            today.month += 1;
-            if (today.month > 12) {
-                today.month = 1;
-                today.year += 1;
-            }
+        // Calculate the first interest date (next month on the same day from creation date)
+        struct Date nextInterestDate = account->creationDate;
+        nextInterestDate.month += 1;
+        if (nextInterestDate.month > 12) {
+            nextInterestDate.month = 1;
+            nextInterestDate.year += 1;
         }
-        today.day = 10;
+
         char interestDateStr[11]; // Format: YYYY-MM-DD
-        snprintf(interestDateStr, sizeof(interestDateStr), "%04d-%02d-%02d", today.year, today.month, today.day);
+        snprintf(interestDateStr, sizeof(interestDateStr), "%04d-%02d-%02d",
+                 nextInterestDate.year, nextInterestDate.month, nextInterestDate.day);
         strncpy(interest.date, interestDateStr, sizeof(interest.date) - 1);
         interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+
+        // Calculate the monthly interest amount dynamically
+        double interestRate = calculateInterestRate(account->type_of_account);
+        interest.amount = account->balance * interestRate / 12;
 
         if (saveTransaction(&interest) == SQLITE_OK) {
             printf("Interest transaction scheduled on %s.\n", interest.date);
@@ -144,32 +167,38 @@ void scheduleInterest(struct Account* account) {
             printf("Failed to schedule interest transaction.\n");
         }
     } else {
-        // Handle fixed account types
+        // Handle fixed account types dynamically
         int durationYears = 0;
+        double interestRate = 0.0;
         double interestAmount = 0.0;
 
         if (strcmp(account->type_of_account, "fixed01") == 0) {
             durationYears = 1;
-            interestAmount = 40.05;
         } else if (strcmp(account->type_of_account, "fixed02") == 0) {
             durationYears = 2;
-            interestAmount = 100.12;
         } else if (strcmp(account->type_of_account, "fixed03") == 0) {
             durationYears = 3;
-            interestAmount = 240.29;
         } else if (strcmp(account->type_of_account, "current") == 0) {
             // Current accounts do not earn interest
+            printf("You will not earn interest because the account is of type current.\n");
             return;
         } else {
-            // Unknown account type; no interest scheduled
+            fprintf(stderr, "Unknown account type.\n");
             return;
         }
+
+        // Get the interest rate based on account type
+        interestRate = calculateInterestRate(account->type_of_account);
+
+        // Calculate the total interest amount dynamically
+        interestAmount = account->balance * interestRate * durationYears;
 
         // Calculate the due date by adding the duration to the creation date
         char dueDateStr[11]; // Format: YYYY-MM-DD
         struct Date dueDate = account->creationDate;
         dueDate.year += durationYears;
-        snprintf(dueDateStr, sizeof(dueDateStr), "%04d-%02d-%02d", dueDate.year, dueDate.month, dueDate.day);
+        snprintf(dueDateStr, sizeof(dueDateStr), "%04d-%02d-%02d",
+                 dueDate.year, dueDate.month, dueDate.day);
 
         // Schedule the interest transaction on the due date
         struct Transaction interest;
@@ -384,23 +413,38 @@ int applyInterest(int account_id, const char* current_date) {
         return 1;
     }
 
+    double interest_rate = calculateInterestRate(account.type_of_account);
     double interest_amount = 0.0;
+
     if (strcmp(account.type_of_account, "savings") == 0) {
-        interest_amount = 5.84; // Example amount
-    } else if (strcmp(account.type_of_account, "fixed01") == 0) {
-        interest_amount = 40.05;
-    } else if (strcmp(account.type_of_account, "fixed02") == 0) {
-        interest_amount = 100.12;
-    } else if (strcmp(account.type_of_account, "fixed03") == 0) {
-        interest_amount = 240.29;
+        // Calculate monthly interest for savings account
+        interest_amount = account.balance * interest_rate / 12;
+    } else if (strcmp(account.type_of_account, "fixed01") == 0 ||
+               strcmp(account.type_of_account, "fixed02") == 0 ||
+               strcmp(account.type_of_account, "fixed03") == 0) {
+        // Determine the duration in years based on account type
+        int durationYears = 0;
+        if (strcmp(account.type_of_account, "fixed01") == 0) {
+            durationYears = 1;
+        } else if (strcmp(account.type_of_account, "fixed02") == 0) {
+            durationYears = 2;
+        } else if (strcmp(account.type_of_account, "fixed03") == 0) {
+            durationYears = 3;
+        }
+
+        // Calculate total interest for the duration
+        interest_amount = account.balance * interest_rate * durationYears;
     } else if (strcmp(account.type_of_account, "current") == 0) {
         // Current accounts do not earn interest
-        printf("You will not get interests because the account is of type current.\n");
+        printf("You will not earn interest because the account is of type current.\n");
         return 0;
     } else {
         fprintf(stderr, "Unknown account type.\n");
         return 1;
     }
+
+    // Round the interest amount to the nearest cent
+    interest_amount = round(interest_amount * 100) / 100;
 
     struct Transaction interest;
     interest.account_id = account_id;
@@ -408,6 +452,7 @@ int applyInterest(int account_id, const char* current_date) {
     interest.amount = interest_amount;
     strncpy(interest.date, current_date, sizeof(interest.date) - 1);
     interest.date[sizeof(interest.date) - 1] = '\0'; // Ensure null-termination
+
     return saveTransaction(&interest);
 }
 

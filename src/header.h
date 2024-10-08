@@ -81,7 +81,9 @@ void updateAccountInfo(struct User* user);
 void removeAccount(struct User* user);
 void transferOwnership(struct User* user);
 void checkOwnedAccounts(struct User* user);
-double calculateInterest(const struct Account* account);
+
+// Declare calculateInterestRate
+double calculateInterestRate(const char* accountType);
 
 // System operations
 void getCurrentDate(struct Date* date);

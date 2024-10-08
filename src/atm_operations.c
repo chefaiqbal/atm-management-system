@@ -11,33 +11,25 @@ extern sqlite3* db;
 int isNumber(const char* str);
 int isValidAccountType(const char* type);
 
-// Function to calculate interest based on account type
-double calculateInterestRate(const char* type) {
-    if (strcmp(type, "savings") == 0) { // Ensure consistent account type
-        return 0.07;
-    } else if (strcmp(type, "fixed01") == 0) {
-        return 0.04;
-    } else if (strcmp(type, "fixed02") == 0) {
-        return 0.05;
-    } else if (strcmp(type, "fixed03") == 0) {
-        return 0.08;
-    } else if (strcmp(type, "current") == 0) { // Handle current accounts
-        return 0.0;
-    } else {
-        return 0.0; // Unknown account types do not earn interest
-    }
-}
+// Declare calculateInterestRate as extern if used
+extern double calculateInterestRate(const char* accountType);
 
 // Function to calculate future total interest for fixed accounts
 double getTotalExpectedInterest(struct Account account) {
+    int durationYears = 0;
+    
     if (strcmp(account.type_of_account, "fixed01") == 0) {
-        return 40.05;
+        durationYears = 1;
     } else if (strcmp(account.type_of_account, "fixed02") == 0) {
-        return 100.12;
+        durationYears = 2;
     } else if (strcmp(account.type_of_account, "fixed03") == 0) {
-        return 240.29;
+        durationYears = 3;
+    } else {
+        return 0.0; // No interest for current or unknown account types
     }
-    return 0.0;
+    
+    double interestRate = calculateInterestRate(account.type_of_account);
+    return account.balance * interestRate * durationYears;
 }
 
 // Create a new account for the user
@@ -119,9 +111,10 @@ void checkAccountDetails(struct User* user) {
 
         // Display interest information based on account type
         if (strcmp(account.type_of_account, "savings") == 0) {
-            printf("You will earn $5.84 of interest on day 10 of every month.\n");
+            double monthlyInterest = account.balance * calculateInterestRate(account.type_of_account) / 12;
+            printf("You will earn $%.2f of interest on the same day every month.\n", monthlyInterest);
         } else if (strcmp(account.type_of_account, "current") == 0) {
-            printf("You will not get interests because the account is of type current.\n");
+            printf("You will not earn interest because the account type is current.\n");
         } else {
             double totalInterest = getTotalExpectedInterest(account);
             if (totalInterest > 0.0) {

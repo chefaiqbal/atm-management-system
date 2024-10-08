@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -g
-LDFLAGS = -lsqlite3 -lssl -lcrypto
+LDFLAGS = -lsqlite3 -lssl -lcrypto -lm
 SRC_DIR = src
 OBJ_DIR = obj
 DATA_DIR = data

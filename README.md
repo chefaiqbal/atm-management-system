@@ -74,4 +74,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 📫 Contact
 - **Email**: amiriqbal87@gmail.com
-- **GitHub**: [chegaiqbal](https://github.com/chefaiqbal)
+- **GitHub**: [chefaiqbal](https://github.com/chefaiqbal)

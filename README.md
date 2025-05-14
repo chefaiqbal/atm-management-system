@@ -40,11 +40,11 @@ Welcome to the **ATM Operations/Management** project! 🚀 This application simu
 ## 🛠 Installation
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/chefaiqbal/atm-operations.git
+   git clone https://github.com/chefaiqbal/atm-management-system.git
    ```
 2. **Navigate to the project directory**
    ```bash
-   cd atm-operations
+   cd atm-management-system
    ```
 3. **Build the project using Makefile**
    ```bash
